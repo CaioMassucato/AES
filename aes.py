@@ -1,5 +1,8 @@
 import binascii
 import re
+import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+import numpy
 
 
 class AES(object):
@@ -23,6 +26,8 @@ class AES(object):
         self.Nb = 0
         self.Nk = 0
         self.Nr = 0
+
+        self.img = mpimg.imread('test.png')
 
         # Rijndael S-box
         self.sbox = [
@@ -138,6 +143,8 @@ class AES(object):
         new_state = []
         split = re.findall('.' * 2, state)
         for x in range(4):
+            # lenState = new_state.__len__()
+            # print("Len: ", lenState , " X: ", x)
             new_state.append(split[0:4][x]); new_state.append(split[4:8][x])
             new_state.append(split[8:12][x]); new_state.append(split[12:16][x])
         return new_state
@@ -265,7 +272,6 @@ class AES(object):
         state = self.SubBytes(state, False)
         state = self.ShiftRows(state, False)
         state = self.AddRoundKey(state, expandedKey[self.Nr])
-        print(state)
         return self.RevertStateMatrix(state)
 
     def InvCipher(self, expandedKey, data):
@@ -414,11 +420,9 @@ class AES(object):
         :return: Data as string or binary data (defined by output type)"""
         # Encrypt hex string data
         if self.input == 'hex':
-            if not isInv: 
-                print("Data: ", data, " Expanded Key: ", expanded_key, "\n")
+            if not isInv:
                 return self.Cipher(expanded_key, data)
-            elif isInv: 
-                print("Data: ", data, " Expanded Key: ", expanded_key, "\n")
+            elif isInv:
                 return self.InvCipher(expanded_key, data)
         # Encrypt a text string
         elif self.input == 'text':
@@ -426,9 +430,11 @@ class AES(object):
             elif isInv: return str(self.unpad(binascii.unhexlify(self.InvCipher(expanded_key, data).encode())))[2:-1]
         # Encrypt a stream of binary data
         elif self.input == 'data':
-            if not isInv: return b''.join(binascii.unhexlify(self.Cipher(
-                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(data))
-            if isInv: return b''.join(binascii.unhexlify(self.InvCipher(
+            if not isInv: 
+                return b''.join(binascii.unhexlify(self.Cipher(
+                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(self.pad(data)))
+            if isInv:
+                return b''.join(binascii.unhexlify(self.InvCipher(
                 expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(data))
         # Raise error on invalid input
         else: raise AttributeError("\n\n\tSupported Input types are ['hex', 'text', 'data']")
