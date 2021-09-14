@@ -32,7 +32,6 @@ cypher_file.write(cypherstream)
 # Decyphers image data
 decyphertext = aes.decryption(cyphertext, key)
 decypherstream = header + decyphertext
-print(decypherstream)
 
 # Create output file containing unscrambled image bytes
 decypher_file = open("out2.ppm", "w+b")

@@ -26,8 +26,6 @@ class AES(object):
         self.Nk = 0
         self.Nr = 0
 
-        self.img = mpimg.imread('test.png')
-
         # Rijndael S-box 
         # (caixa de substituição usada na cifra Rijndael, na qual a cifra AES é baseada)
         self.sBox = [
@@ -265,16 +263,30 @@ class AES(object):
         return [self.stateMatrix(''.join(w[x:x + 4])) for x in range(0, len(w), self.Nk)]
 
     def key_handler(self, key, isInv):
-    # Obtém o comprimento da chave e define Nb, Nk, Nr de acordo.
+    # Obtém o comprimento da chave e define Nb, Nk de acordo e pede o Nr ao usuário.
+        print("\n---------- MENU -----------\n")
+        print("1 - 1 Rodada\n")
+        print("2 - 3 Rodadas\n")
+        print("3 - 5 Rodadas\n")
+        print("4 - 9 Rodadas\n")
+        print("5 - 13 Rodadas\n")
+        choice = input("Insira o número desejado de rodadas: \n")
+        if(choice == '1'): self.Nr = 1
+        elif(choice == '2'): self.Nr = 3
+        elif(choice == '3'): self.Nr = 5
+        elif(choice == '4'): self.Nr = 9
+        elif(choice == '5'): self.Nr = 10
+        else:
+            raise AssertionError(str(choice) + " é uma escolha inválida! Use o menu exibido acima.")
         # chave de 128 bits
         if len(key) == 32:
-            self.Nb = 4; self.Nk = 4; self.Nr = 10
+            self.Nb = 4; self.Nk = 4
         # chave de 192 bits
         elif len(key) == 48:
-            self.Nb = 4; self.Nk = 6; self.Nr = 12
+            self.Nb = 4; self.Nk = 6
         # chave de 256 bits
         elif len(key) == 64:
-            self.Nb = 4; self.Nk = 8; self.Nr = 14
+            self.Nb = 4; self.Nk = 8
         # Gera erro com tamanho de chave inválido
         else: 
             raise AssertionError("%s é uma chave inválida'!\n Use uma chave de 128 bits, 192 bits ou 256 bits!" % key)
@@ -292,10 +304,10 @@ class AES(object):
         # Criptografa usando o modo ECB
         if self.mode == 'ecb': return self.ecb(data, expanded_key, isInv)
         # Criptografa usando o modo CBC
-        elif self.mode == 'cbc': return self.cbc(data, expanded_key, isInv)
+        elif self.mode == 'ctr': return self.ctr(data, expanded_key, isInv)
         # Gera erro em modo inválido
         else: 
-            raise AttributeError("\n\n\t Os modos de operação AES suportados são ['ecb', 'cbc']")
+            raise AttributeError("\n\n\t Os modos de operação AES suportados são ['ecb', 'ctr']")
 
     def encryption(self, data, key):
     # Função principal da criptografia AES
@@ -307,7 +319,7 @@ class AES(object):
 
     @staticmethod
     def xor(first, last):
-        """ Xor method for CBC usage    
+        """ Xor method for CTR usage    
     
         :param first: first encrypted block
         :param last: last encrypted block
@@ -316,9 +328,9 @@ class AES(object):
         last = re.findall('.' * 2, last)
         return ''.join('%02x' % (int(first[x], 16) ^ int(last[x], 16)) for x in range(16))
 
-    def cbc(self, data, expanded_key, isInv):
-        """ CBC mode:
-        In CBC mode, each block of dataDecrypt == XORed with the
+    def ctr(self, data, expanded_key, isInv):
+        """ CTR mode:
+        In CBC mode, each block of dataDecrypt is XORed with the
         previous ciphertext block before being encrypted.
 
         Denoted as:
@@ -373,10 +385,10 @@ class AES(object):
         elif self.input == 'data':
             if not isInv: 
                 return b''.join(binascii.unhexlify(self.Cipher(
-                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(data))
+                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(self.padding(data)))
             if isInv: 
                 return b''.join(binascii.unhexlify(self.InvCipher(
-                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(data))
+                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(self.padding(data)))
         # Gera erro com entrada inválida
         else: 
             raise AttributeError("\n\n\t Os tipos de entrada suportados são ['hex', 'text', 'data']")
