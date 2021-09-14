@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import binascii
 import re
 import matplotlib.image as mpimg
@@ -435,7 +437,7 @@ class AES(object):
                 expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(self.pad(data)))
             if isInv:
                 return b''.join(binascii.unhexlify(self.InvCipher(
-                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(data))
+                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(self.pad(data)))
         # Raise error on invalid input
         else: raise AttributeError("\n\n\tSupported Input types are ['hex', 'text', 'data']")
 

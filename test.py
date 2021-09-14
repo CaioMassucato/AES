@@ -1,13 +1,17 @@
-from matplotlib import image
+# -*- coding: utf-8 -*-
 from aes import AES
 import os
 import io
+import base64
 import binascii
-import PIL.Image as Image
+from PIL import ImageFile, Image
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+from utils import marker_mapping
+from struct import unpack
 
 path = 'test'
-extension = '.bmp'
-# savepath = 'C:\Users\Caio Massucato\Downloads'
+extension = '.jpeg'
+savepath = 'C:=/Users/Caio Massucato/Downloads/'
 
 # Instructions for my AES implication
 aes = AES(mode='ecb', input_type='data')
@@ -16,24 +20,27 @@ aes = AES(mode='ecb', input_type='data')
 key = '000102030405060708090a0b0c0d0e0f'
 
 # Reads image into list of bytes
-img = open("test.png", 'r+b').readlines()
+img_file = open("test.jpeg", 'r+b')
+img = img_file.readlines()
+img_file.close()
 
-# Opens image
-initialImg = Image.open("test.png")
-initialImg.show()
 
 # Removes header from byte list and converts
 # it into a byte stream
-header = img.pop(0)
-print(header)
 bytestream = b''.join(img)
-print(bytestream)
+byte_data = bytestream.split(sep=b'\xff\xda')
+img_data = byte_data[1].strip(b'\xff\xd9')
 
-# Encrypts the byte stream
-cyphertext = aes.encryption(bytestream, key)
+# # Encrypts the byte stream
+cyphertext = aes.encryption(img_data, key)
+cypherstream = byte_data[0] + b'\xff\xda' + cyphertext + b'\xff\xd9'
 
-# Decrypts the byte stream
-plaintext = aes.decryption(cyphertext, key)
+cypher_img = Image.open(io.BytesIO(cypherstream))
+cypher_img.load()
+cypher_img.show()
+cypher_img.close()
 
+# # Decrypts the byte stream
+# plaintext = aes.decryption(bytestream, key)
 
 

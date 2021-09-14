@@ -1,2 +1,6 @@
+# Encrypts the byte stream
+# cyphertext = aes.encryption(bytestream, key)
 
-print(image_data)
+
+# # Decrypts the byte stream
+# plaintext = aes.decryption(bytestream, key)
