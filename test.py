@@ -5,7 +5,6 @@ import os
 import io
 import binascii
 from PIL import Image
-from utils import marker_mapping
 
 # Instructions for AES
 aes = AES(mode='ecb', input_type='data')

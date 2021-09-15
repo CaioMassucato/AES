@@ -1,7 +1,6 @@
 import binascii
 import re
-import matplotlib.image as mpimg
-import matplotlib.pyplot as plt
+from utils import *
 import numpy
 
 class AES(object):
@@ -85,96 +84,6 @@ class AES(object):
         # Round constant
         self.rcon = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36]
 
-    @staticmethod
-    def padding(data, block = 16):
-    # Método de preenchimento dos dados
-    # consiste em inserir dados em uma mensagem antes da cifração 
-        if block < 2 or block > 255:
-            raise ValueError("Tamanho do bloco deve ser < 2 e > 255")
-
-        if len(data) == block: return data
-        padded = block - (len(data) % block)
-        return data + binascii.unhexlify(('%02x' % int(padded)).encode()) + b'\x00' * (padded - 1)
-
-    @staticmethod
-    def unpadding(data):
-    # Retirada de preenchimento dos dados depois do processo de decifração 
-        p = None
-        for x in data[::-1]:
-            if x == 0:
-                continue
-            elif x != 0:
-                p = x; break
-        data = data[::-1]
-        data = data[p:]
-        return data[::-1]
-
-    @staticmethod
-    def unblock(data, size = 16):
-    # Desbloqueia dados binários
-        # Retorna blocos de 64 bits de dados
-        return [data[x:x + size] for x in range(0, len(data), size)]
-
-    @staticmethod
-    def permuta(word):
-    # Seleciona uma palavra [a0, a1, a2, a3] como entrada e executa uma 
-    # permutação cíclica que retorna a palavra [a1, a2, a3, a0].
-        return int(word[2:] + word[0:2], 16)
-
-    @staticmethod
-    def stateMatrix(state):
-    # Formata uma matriz de estado str para uma lista formatada.
-        newState = []
-        split = re.findall('.' * 2, state)
-        for x in range(4):
-            # lenState = new_state.__len__()
-            # print("Len: ", lenState , " X: ", x)
-            newState.append(split[0:4][x]); newState.append(split[4:8][x])
-            newState.append(split[8:12][x]); newState.append(split[12:16][x])
-        return newState
-
-    @staticmethod
-    def revertMatrix(state):
-    # Inverte o formato da Matriz de Estado como str
-        columns = [state[x:x + 4] for x in range(0, 16, 4)]
-        return ''.join(''.join([columns[0][x], columns[1][x], columns[2][x], columns[3][x]]) for x in range(4))
-
-    @staticmethod
-    def galoisField(a, b):
-    # Multiplicação pelo método de Galois de caracteres de 8 bits a e b
-        p = 0
-        for counter in range(8):
-            if b & 1: p ^= a
-            hi_bit_set = a & 0x80
-            a <<= 1
-            # mantém os 8 bits
-            a &= 0xFF
-            if hi_bit_set:
-                a ^= 0x1b
-            b >>= 1
-        return p
-
-    @staticmethod
-    def AddRoundKey(state, key):
-    # Adiciona uma Round Key ao estado usando uma operação XOR.
-        return ['%02x' % (int(state[x], 16) ^ int(key[x], 16)) for x in range(16)]
-
-    def ShiftRows(self, state, isInv):
-    # Altera o estado, deslocando ciclicamente as últimas 
-    # três linhas do estado por diferentes deslocamentos.
-        offset = 0
-        if isInv: 
-            state = re.findall('.' * 2, self.revertMatrix(state))
-        for x in range(0, 16, 4):
-            state[x:x + 4] = state[x:x + 4][offset:] + state[x:x + 4][:offset]
-            if not isInv:
-                offset += 1
-            elif isInv:
-                offset -= 1
-        if isInv: 
-            return self.stateMatrix(''.join(state))
-        return state
-
     def SubWord(self, byte):
     # Key Expansion routine que pega uma palavra de entrada de quatro bytes 
     # e aplica uma substituição S-box.
@@ -189,62 +98,37 @@ class AES(object):
         elif isInv: 
             return ['%02x' % self.sBoxInverted[int(state[x], 16)] for x in range(16)]
 
-    # noinspection PyAssignmentToLoopOrWithParameter
-    def MixColumns(self, state, isInv):
-    # Opera no estado coluna por coluna, tratando cada coluna como um polinômio de quatro termos. 
-    # As colunas são consideradas polinômios sobre o Galois Field (2 ^ 8) 
-    # e módulo multiplicado x ^ 4 + 1 com um polinômio fixo a (x).
-        if isInv: 
-            fixed = [14, 9, 13, 11]; state = self.stateMatrix(''.join(state))
-        else: 
-            fixed = [2, 1, 1, 3]
-        columns = [state[x:x + 4] for x in range(0, 16, 4)]
-        row = [0, 3, 2, 1]
-        col = 0
-        output = []
-        for _ in range(4):
-            for _ in range(4):
-                # noinspection PyTypeChecker
-                output.append('%02x' % (
-                    self.galoisField(int(columns[row[0]][col], 16), fixed[0]) ^
-                    self.galoisField(int(columns[row[1]][col], 16), fixed[1]) ^
-                    self.galoisField(int(columns[row[2]][col], 16), fixed[2]) ^
-                    self.galoisField(int(columns[row[3]][col], 16), fixed[3])))
-                row = [row[-1]] + row[:-1]
-            col += 1
-        return output
-
     def Cipher(self, expandedKey, data):
     # No início da cifra, a entrada é copiada para a matriz de estado. 
     # Depois de uma adição inicial da Round Key, a Matriz de Estado é transformada implementando
     # uma função de rodada 10, 12 ou 14 vezes (dependendo do comprimento da chave), 
     # com a rodada final ligeiramente diferente das primeiras rodadas Nr -1. 
     # A matriz de estado final é então copiada como saída.
-        state = self.AddRoundKey(self.stateMatrix(data), expandedKey[0])
+        state = AddRoundKey(stateMatrix(data), expandedKey[0])
         for r in range(self.Nr - 1):
             state = self.SubBytes(state, False)
-            state = self.ShiftRows(state, False)
-            state = self.stateMatrix(''.join(self.MixColumns(state, False)))
-            state = self.AddRoundKey(state, expandedKey[r + 1])
+            state = ShiftRows(state, False)
+            state = stateMatrix(''.join(MixColumns(state, False)))
+            state = AddRoundKey(state, expandedKey[r + 1])
 
         state = self.SubBytes(state, False)
-        state = self.ShiftRows(state, False)
-        state = self.AddRoundKey(state, expandedKey[self.Nr])
+        state = ShiftRows(state, False)
+        state = AddRoundKey(state, expandedKey[self.Nr])
         # print(state)
-        return self.revertMatrix(state)
+        return revertMatrix(state)
 
     def InvCipher(self, expandedKey, data):
-        state = self.AddRoundKey(re.findall('.' * 2, data), expandedKey[self.Nr])
+        state = AddRoundKey(re.findall('.' * 2, data), expandedKey[self.Nr])
 
         for r in range(self.Nr - 1):
-            state = self.ShiftRows(state, True)
+            state = ShiftRows(state, True)
             state = self.SubBytes(state, True)
-            state = self.AddRoundKey(state, expandedKey[-(r + 2)])
-            state = self.MixColumns(state, True)
+            state = AddRoundKey(state, expandedKey[-(r + 2)])
+            state = MixColumns(state, True)
 
-        state = self.ShiftRows(state, True)
+        state = ShiftRows(state, True)
         state = self.SubBytes(state, True)
-        state = self.AddRoundKey(state, expandedKey[0])
+        state = AddRoundKey(state, expandedKey[0])
         return ''.join(state)
 
     def ExpandKey(self, key):
@@ -255,12 +139,12 @@ class AES(object):
         while i < self.Nb * (self.Nr + 1):
             temp = w[i - 1]
             if i % self.Nk == 0:
-                temp = '%08x' % (self.SubWord(self.permuta(temp)) ^ (self.rcon[i // self.Nk] << 24))
+                temp = '%08x' % (self.SubWord(permuta(temp)) ^ (self.rcon[i // self.Nk] << 24))
             elif self.Nk > 6 and i % self.Nk == 4:
                 temp = '%08x' % self.SubWord(int(temp, 16))
             w.append('%08x' % (int(w[i - self.Nk], 16) ^ int(temp, 16)))
             i += 1
-        return [self.stateMatrix(''.join(w[x:x + 4])) for x in range(0, len(w), self.Nk)]
+        return [stateMatrix(''.join(w[x:x + 4])) for x in range(0, len(w), self.Nk)]
 
     def key_handler(self, key, isInv):
     # Obtém o comprimento da chave e define Nb, Nk de acordo e pede o Nr ao usuário.
@@ -295,7 +179,7 @@ class AES(object):
             return self.ExpandKey(key)
         # Retorna a chave expandida invertida
         if isInv: 
-            return [re.findall('.' * 2, self.revertMatrix(x)) for x in self.ExpandKey(key)]
+            return [re.findall('.' * 2, revertMatrix(x)) for x in self.ExpandKey(key)]
 
     def aes_main(self, data, key, isInv):
     # Lida com os modos de criptografia e descriptografia
@@ -317,17 +201,6 @@ class AES(object):
     # Função principal da descriptografia AES
         return self.aes_main(data, key, True)
 
-    @staticmethod
-    def xor(first, last):
-        """ Xor method for CTR usage    
-    
-        :param first: first encrypted block
-        :param last: last encrypted block
-        :return: Xor output of two blocks """
-        first = re.findall('.' * 2, first)
-        last = re.findall('.' * 2, last)
-        return ''.join('%02x' % (int(first[x], 16) ^ int(last[x], 16)) for x in range(16))
-
     def ctr(self, data, expanded_key, isInv):
         """ CTR mode:
         In CBC mode, each block of dataDecrypt is XORed with the
@@ -347,18 +220,18 @@ class AES(object):
             if type(data) != list: data = data.split()
             blocks = [self.iv]; last = [self.iv] + data
             if not isInv:
-                [blocks.append(self.Cipher(expanded_key, self.xor(blocks[-1], x))) for x in data]
+                [blocks.append(self.Cipher(expanded_key, xor(blocks[-1], x))) for x in data]
                 return blocks[1:]
             elif isInv:
-                return ''.join([self.xor(self.InvCipher(expanded_key, data[x]), last[x]) for x in range(len(data))])
+                return ''.join([xor(self.InvCipher(expanded_key, data[x]), last[x]) for x in range(len(data))])
         elif self.input == 'data':
             if not isInv:
-                data = re.findall('.' * 32, binascii.hexlify(self.padding(data)).decode()); blocks = [self.iv]
-                [blocks.append(self.Cipher(expanded_key, self.xor(blocks[-1], x))) for x in data]
+                data = re.findall('.' * 32, binascii.hexlify(padding(data)).decode()); blocks = [self.iv]
+                [blocks.append(self.Cipher(expanded_key, xor(blocks[-1], x))) for x in data]
                 return b''.join(binascii.unhexlify(x.encode()) for x in blocks[1:])
             elif isInv:
                 data = re.findall('.' * 32, binascii.hexlify(data).decode()); last = [self.iv] + data
-                return self.unpadding(b''.join(binascii.unhexlify(x.encode()) for x in [self.xor(
+                return unpadding(b''.join(binascii.unhexlify(x.encode()) for x in [xor(
                     self.InvCipher(expanded_key, data[x]), last[x]) for x in range(len(data))]))
 
         # Raise error on invalid input
@@ -379,16 +252,16 @@ class AES(object):
                 return self.InvCipher(expanded_key, data)
         # Criptografa uma string de texto
         elif self.input == 'text':
-            if not isInv: return self.Cipher(expanded_key, ''.join('%02x' % x for x in self.padding(data.encode())))
-            elif isInv: return str(self.unpadding(binascii.unhexlify(self.InvCipher(expanded_key, data).encode())))[2:-1]
+            if not isInv: return self.Cipher(expanded_key, ''.join('%02x' % x for x in padding(data.encode())))
+            elif isInv: return str(unpadding(binascii.unhexlify(self.InvCipher(expanded_key, data).encode())))[2:-1]
         # Criptografa um fluxo de dados binários
         elif self.input == 'data':
             if not isInv: 
                 return b''.join(binascii.unhexlify(self.Cipher(
-                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(self.padding(data)))
+                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in unblock(padding(data)))
             if isInv: 
                 return b''.join(binascii.unhexlify(self.InvCipher(
-                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in self.unblock(self.padding(data)))
+                expanded_key, str(binascii.hexlify(x))[2:-1]).encode()) for x in unblock(padding(data)))
         # Gera erro com entrada inválida
         else: 
             raise AttributeError("\n\n\t Os tipos de entrada suportados são ['hex', 'text', 'data']")
