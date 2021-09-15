@@ -2,11 +2,25 @@
 
 import binascii
 import re
-import numpy
+from constantes import sBox, sBoxInverted
 
 def AddRoundKey(state, key):
     # Adiciona uma Round Key ao estado usando uma operação XOR.
         return ['%02x' % (int(state[x], 16) ^ int(key[x], 16)) for x in range(16)]
+
+def SubWord(byte):
+    # Key Expansion routine que pega uma palavra de entrada de quatro bytes 
+    # e aplica uma substituição S-box.
+    return ((sBox[(byte >> 24 & 0xff)] << 24) + (sBox[(byte >> 16 & 0xff)] << 16) +
+            (sBox[(byte >> 8 & 0xff)] << 8) + sBox[byte & 0xff])
+
+def SubBytes(state, isInv):
+# Transforma a matriz de estado usando um byte não linear S-box 
+# que opera em cada um dos bytes de estado independentemente.
+    if not isInv: 
+        return ['%02x' % sBox[int(state[x], 16)] for x in range(16)]
+    elif isInv: 
+        return ['%02x' % sBoxInverted[int(state[x], 16)] for x in range(16)]
 
 def padding(data, block = 16):
 # Método de preenchimento dos dados
