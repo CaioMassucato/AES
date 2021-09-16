@@ -2,6 +2,7 @@
 
 import binascii
 import re
+import sys
 from constantes import sBox, sBoxInverted
 
 def AddRoundKey(state, key):
@@ -125,12 +126,6 @@ def MixColumns(state, isInv):
         col += 1
     return output
 
-def xor(first, last):
-        """ Xor method for CTR usage    
-    
-        :param first: first encrypted block
-        :param last: last encrypted block
-        :return: Xor output of two blocks """
-        first = re.findall('.' * 2, first)
-        last = re.findall('.' * 2, last)
-        return ''.join('%02x' % (int(first[x], 16) ^ int(last[x], 16)) for x in range(16))
+# faz xor entre os bytes em ba1 e ba2
+def byte_xor(ba1, ba2):
+    return bytes([_a ^ _b for _a, _b in zip(ba1, ba2)])
